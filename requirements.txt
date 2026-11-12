@@ -1,0 +1,4 @@
+# Astro Runtime includes pre-installed provider packages.
+# Add additional python packages below:
+pymongo>=4.6.0
+requests>=2.31.0

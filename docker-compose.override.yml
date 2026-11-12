@@ -1,0 +1,50 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: airflow_mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: currency_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_persistent_storage:/data/db
+    networks:
+      airflow:
+        aliases:
+          - mongodb
+          - mongo
+      airflow_etl_network:
+        aliases:
+          - mongodb
+          - mongo
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: airflow_mongo_express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://admin:password123@mongodb:27017/?authSource=admin"
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_MONGODB_AUTH_DATABASE: admin
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb
+    networks:
+      - airflow
+      - airflow_etl_network
+
+volumes:
+  mongodb_persistent_storage:
+    name: mongodb_persistent_storage
+    driver: local
+
+networks:
+  airflow:
+  airflow_etl_network:
+    name: airflow_etl_network
+    driver: bridge
