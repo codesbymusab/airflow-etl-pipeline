@@ -1,13 +1,3 @@
-"""
-DAG: currency_exchange_etl_pipeline
-Description: Daily Currency Exchange Rates ETL Pipeline from Frankfurter API to MongoDB
-Features:
- - Extract Currency Exchange Rates from Frankfurter API (Base: EUR, Quotes: USD, GBP, JPY)
- - Transform rates into standardized schema with metadata
- - Load records into MongoDB database with persistent storage
- - Uses Named Airflow XCom for inter-task communication
-"""
-
 from datetime import datetime, timedelta, timezone
 import logging
 import os
@@ -44,10 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 def extract_currency_rates(**context):
-    """
-    Task 1: Extract Currency Exchange Rates from Frankfurter API
-    Pushes raw extracted data to Named XCom key: 'raw_exchange_rates'
-    """
+
     ti = context["ti"]
     logger.info("Starting extraction from Frankfurter API: %s", API_URL)
 
@@ -69,20 +56,7 @@ def extract_currency_rates(**context):
 
 
 def transform_currency_rates(**context):
-    """
-    Task 2: Transform Exchange Rate Data
-    Pulls raw data from Named XCom key: 'raw_exchange_rates'
-    Transforms each entry into the required schema:
-    {
-        "base_currency": "EUR",
-        "target_currency": "USD",
-        "exchange_rate": 1.15,
-        "rate_date": "2026-11-04",
-        "source": "Frankfurter API",
-        "retrieved_at": "2026-11-05T07:15:00"
-    }
-    Pushes transformed data to Named XCom key: 'transformed_exchange_rates'
-    """
+  
     ti = context["ti"]
     xcom_pull_key = "raw_exchange_rates"
     raw_data = ti.xcom_pull(key=xcom_pull_key, task_ids="extract_currency_rates")
@@ -146,12 +120,7 @@ def transform_currency_rates(**context):
 
 
 def load_currency_rates_to_mongodb(**context):
-    """
-    Task 3: Load Data into MongoDB
-    Pulls transformed records from Named XCom key: 'transformed_exchange_rates'
-    Inserts or upserts data into MongoDB collection 'exchange_rates' in 'currency_db'
-    Pushes load summary to Named XCom key: 'load_summary'
-    """
+ 
     ti = context["ti"]
     xcom_pull_key = "transformed_exchange_rates"
     transformed_records = ti.xcom_pull(
