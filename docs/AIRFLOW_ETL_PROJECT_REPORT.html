@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airflow Currency Exchange Rates ETL Pipeline - Project Report</title>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --code-bg: #0b1120;
+      --success: #10b981;
+    }
+    @media print {
+      body { background: white !important; color: black !important; }
+      .card { border: 1px solid #ddd !important; background: white !important; }
+      pre, code { background: #f8fafc !important; color: #0f172a !important; border: 1px solid #e2e8f0 !important; }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--bg);
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+    }
+    h1 {
+      color: #38bdf8;
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #0369a1;
+      color: #e0f2fe;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    h2 {
+      color: #7dd3fc;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-top: 0;
+    }
+    h3 {
+      color: #bae6fd;
+      margin-top: 20px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+      font-size: 0.9rem;
+      color: #38bdf8;
+    }
+    code {
+      font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-size: 0.9em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background-color: #0f172a;
+      color: #7dd3fc;
+    }
+    .img-container {
+      margin: 20px 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+    }
+    .img-container img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .img-caption {
+      padding: 10px 14px;
+      background: #0f172a;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+    .success-pill {
+      background-color: #065f46;
+      color: #6ee7b7;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Airflow Currency Exchange Rates ETL Pipeline</h1>
+      <p style="font-size: 1.15rem; color: #94a3b8; margin: 0 0 16px 0;">
+        Automated Daily Currency Extraction (Frankfurter API) &rarr; Schema Normalization &rarr; MongoDB Loading with Astro CLI & Named XComs
+      </p>
+      <div class="meta-bar">
+        <span><strong>Author:</strong> Musab</span>
+        <span><strong>Email:</strong> codesbymusab@gmail.com</span>
+        <span><strong>Framework:</strong> Apache Airflow 3 (Astro Runtime)</span>
+        <span><strong>Status:</strong> <span class="success-pill">SUCCESSFUL</span></span>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2>1. Executive Summary</h2>
+      <p>
+        This project implements an enterprise-grade automated Data Engineering ETL pipeline utilizing the <strong>Astronomer CLI (Astro CLI)</strong> and <strong>Apache Airflow</strong>.
+        The pipeline programmatically queries daily currency exchange rates from the public <strong>Frankfurter API</strong> (Base: <code>EUR</code>, Quotes: <code>USD, GBP, JPY</code>), normalizes the JSON payloads into a strict enterprise schema with audit metadata, and persists the data into a containerized <strong>MongoDB</strong> database.
+        A dedicated <strong>Mongo Express</strong> container provides real-time web administration. All communication between pipeline tasks is strictly decoupled through <strong>Airflow (Named) XComs</strong>.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. System Architecture</h2>
+      <pre>
+   +-------------------------------------------------------------+
+   |                  Frankfurter API (Public)                   |
+   |   https://api.frankfurter.dev/v2/rates?base=EUR&quotes=...   |
+   +------------------------------+------------------------------+
+                                  | HTTP GET
+                                  v
+   +-------------------------------------------------------------+
+   |               ASTRO AIRFLOW 3 RUNTIME POD                   |
+   |                                                             |
+   |  [Task 1: extract_currency_rates]                           |
+   |   &bull; Pulls rates for EUR -> USD, GBP, JPY                   |
+   |   &bull; Pushes raw payload to Named XCom: 'raw_exchange_rates'  |
+   |                                                             |
+   |                              |                              |
+   |                              v XCom: 'raw_exchange_rates'   |
+   |                                                             |
+   |  [Task 2: transform_currency_rates]                         |
+   |   &bull; Validates & formats required JSON schema                |
+   |   &bull; Appends 'source' and 'retrieved_at' ISO timestamp      |
+   |   &bull; Pushes to Named XCom: 'transformed_exchange_rates'     |
+   |                                                             |
+   |                              |                              |
+   |                              v XCom: 'transformed_rates'   |
+   |                                                             |
+   |  [Task 3: load_currency_rates_to_mongodb]                   |
+   |   &bull; Connects via pymongo to mongodb:27017                   |
+   |   &bull; Idempotent upsert into currency_db.exchange_rates     |
+   |   &bull; Pushes summary to Named XCom: 'load_summary'           |
+   +------------------------------+------------------------------+
+                                  |
+            +---------------------+---------------------+
+            v                                           v
+   +-------------------------------+   +-------------------------------+
+   |      MongoDB (mongo:6.0)      |   |   Mongo Express (Web Admin)   |
+   |  Port: 27017                  |   |  Port: 8081                   |
+   |  Volume: persistent_storage   |   |  Real-time Collection Browser |
+   +-------------------------------+   +-------------------------------+
+      </pre>
+    </div>
+
+    <div class="card">
+      <h2>3. Docker Infrastructure & Metadata</h2>
+      <p>Configured in <code>docker-compose.override.yml</code>:</p>
+      <ul>
+        <li><strong>Docker Networking:</strong> Attached to custom bridge <code>airflow_etl_network</code> and internal <code>airflow</code> network for container discovery (<code>mongodb:27017</code>).</li>
+        <li><strong>Persistent Storage:</strong> Volume <code>mongodb_persistent_storage</code> mounted at <code>/data/db</code> guarantees data durability across container lifecycles.</li>
+        <li><strong>Mongo Express GUI:</strong> Independent Docker service at <code>http://localhost:8081</code>.</li>
+      </ul>
+      <pre><code>services:
+  mongodb:
+    image: mongo:6.0
+    container_name: airflow_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: currency_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_persistent_storage:/data/db
+    networks:
+      - airflow
+      - airflow_etl_network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: airflow_mongo_express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://admin:password123@mongodb:27017/?authSource=admin"
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb
+    networks:
+      - airflow
+      - airflow_etl_network</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>4. Airflow Tasks & Named XCom Implementation</h2>
+      <p>The DAG <code>currency_exchange_etl_pipeline</code> comprises three sequential tasks:</p>
+
+      <h3>Task 1: extract_currency_rates</h3>
+      <p>Queries Frankfurter API and pushes raw data via Named XCom:</p>
+      <pre><code>ti.xcom_push(key="raw_exchange_rates", value=raw_data)</code></pre>
+
+      <h3>Task 2: transform_currency_rates</h3>
+      <p>Pulls from <code>raw_exchange_rates</code> and normalizes to the required schema:</p>
+      <pre><code>{
+  "base_currency": "EUR",
+  "target_currency": "USD",
+  "exchange_rate": 1.1117,
+  "rate_date": "2026-11-12",
+  "source": "Frankfurter API",
+  "retrieved_at": "2026-11-12T18:07:22"
+}</code></pre>
+      <pre><code>ti.xcom_push(key="transformed_exchange_rates", value=transformed_records)</code></pre>
+
+      <h3>Task 3: load_currency_rates_to_mongodb</h3>
+      <p>Pulls from <code>transformed_exchange_rates</code> and upserts into MongoDB:</p>
+      <pre><code>collection.update_one(
+    {"base_currency": record["base_currency"], "target_currency": record["target_currency"], "rate_date": record["rate_date"]},
+    {"$set": record},
+    upsert=True
+)
+ti.xcom_push(key="load_summary", value=summary)</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>5. Verification & Test Suite</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Test Verification</th>
+            <th>Command</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Astro Test Suite</td>
+            <td><code>astro dev pytest</code></td>
+            <td><span class="success-pill">5 / 5 PASSED (1.84s)</span></td>
+          </tr>
+          <tr>
+            <td>DAG Parsing</td>
+            <td><code>astro dev parse</code></td>
+            <td><span class="success-pill">0 ERRORS DETECTED</span></td>
+          </tr>
+          <tr>
+            <td>Airflow DAG Run</td>
+            <td><code>astro dev run dags test ...</code></td>
+            <td><span class="success-pill">STATE: SUCCESS (5.24s)</span></td>
+          </tr>
+          <tr>
+            <td>Mongo Express Web UI</td>
+            <td><code>curl -I http://localhost:8081</code></td>
+            <td><span class="success-pill">HTTP 200 OK</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>6. Screenshots Gallery</h2>
+
+      <h3>Airflow DAG Overview & Task Graph</h3>
+      <div class="img-container">
+        <img src="screenshots/07_airflow_dag_details.png" alt="Airflow DAG Graph">
+        <div class="img-caption">Figure 1: Airflow 3 DAG interface displaying extract, transform, and load task dependencies.</div>
+      </div>
+
+      <h3>Airflow Tasks Execution Status</h3>
+      <div class="img-container">
+        <img src="screenshots/08_airflow_dag_tasks.png" alt="Airflow Task Status">
+        <div class="img-caption">Figure 2: Execution metrics and state for all 3 tasks (All Green).</div>
+      </div>
+
+      <h3>Airflow DAG Source Code View</h3>
+      <div class="img-container">
+        <img src="screenshots/09_airflow_dag_code.png" alt="Airflow Code">
+        <div class="img-caption">Figure 3: Built-in Airflow code viewer displaying the PythonOperator definitions and Named XCom logic.</div>
+      </div>
+
+      <h3>Mongo Express - Collection Overview</h3>
+      <div class="img-container">
+        <img src="screenshots/03_mongo_express_documents_table.png" alt="Mongo Express Documents">
+        <div class="img-caption">Figure 4: Mongo Express table showing the live transformed exchange rates in MongoDB.</div>
+      </div>
+
+      <h3>Mongo Express - JSON Document Detail</h3>
+      <div class="img-container">
+        <img src="screenshots/04_mongo_express_document_detail.png" alt="Mongo Express Document Detail">
+        <div class="img-caption">Figure 5: Inspecting a single MongoDB document showing the exact required schema fields.</div>
+      </div>
+
+      <h3>Astro Airflow Dashboard</h3>
+      <div class="img-container">
+        <img src="screenshots/05_airflow_web_ui.png" alt="Airflow Web UI">
+        <div class="img-caption">Figure 6: Astronomer Airflow system health and active DAG run metrics.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>7. Submission & Repository Links</h2>
+      <p>The code is structured, tested, and tracked under Git:</p>
+      <ul>
+        <li><strong>GitHub Repository:</strong> <a href="https://github.com/codesbymusab/airflow-mongodb-currency-etl" style="color: #38bdf8;" target="_blank">https://github.com/codesbymusab/airflow-mongodb-currency-etl</a></li>
+      </ul>
+      <p>To push to remote:</p>
+      <pre><code>git remote add origin https://github.com/codesbymusab/airflow-mongodb-currency-etl.git
+git branch -M main
+git push -u origin main</code></pre>
+    </div>
+  </div>
+</body>
+</html>
